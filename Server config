@@ -1,0 +1,602 @@
+use("patient_db");
+
+// Create patients collection with validation
+db.createCollection("patients", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["patient_id", "name", "age", "gender", "contact", "created_at"],
+      properties: {
+        patient_id: { bsonType: "string" },
+        name: { bsonType: "string" },
+        age: { bsonType: "int", minimum: 0, maximum: 120 },
+        gender: { enum: ["Male", "Female", "Other"] },
+        contact: { bsonType: "string" },
+        address: { bsonType: "string" },
+        created_at: { bsonType: "date" }
+      }
+    }
+  }
+});
+
+// Create doctors collection
+db.createCollection("doctors", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["doctor_id", "name", "specialty", "contact", "created_at"],
+      properties: {
+        doctor_id: { bsonType: "string" },
+        name: { bsonType: "string" },
+        specialty: { bsonType: "string" },
+        contact: { bsonType: "string" },
+        created_at: { bsonType: "date" }
+      }
+    }
+  }
+});
+
+// Create medicines collection
+db.runCommand({
+  collMod: "medicines",
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["medicine_id","name","manufacturer","expiry_date","price"],
+      properties: {
+        medicine_id: { bsonType: "string" },
+        name: { bsonType: "string" },
+        manufacturer: { bsonType: "string" },
+        expiry_date: { bsonType: "date" },
+        // accept int, double, decimal for price
+        price: { bsonType: ["double","int","decimal"], minimum: 0 }
+      }
+    }
+  },
+  validationLevel: "moderate"
+});
+
+// Create prescriptions collection
+db.createCollection("prescriptions", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["prescription_id", "patient_id", "doctor_id", "medicines", "date_issued"],
+      properties: {
+        prescription_id: { bsonType: "string" },
+        patient_id: { bsonType: "string" },
+        doctor_id: { bsonType: "string" },
+        medicines: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            required: ["medicine_id", "dosage", "duration"],
+            properties: {
+              medicine_id: { bsonType: "string" },
+              dosage: { bsonType: "string" },
+              duration: { bsonType: "string" }
+            }
+          }
+        },
+        date_issued: { bsonType: "date" },
+        notes: { bsonType: "string" }
+      }
+    }
+  }
+});
+
+//    Create sales collection
+db.runCommand({
+  collMod: "sales",
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["sale_id","medicine_id","quantity","total_price","sale_date"],
+      properties: {
+        sale_id: { bsonType: "string" },
+        medicine_id: { bsonType: "string" },
+        quantity: { bsonType: "int", minimum: 1 },
+        total_price: { bsonType: ["double","int","decimal"], minimum: 0 },
+        sale_date: { bsonType: "date" },
+        customer_name: { bsonType: "string" }
+      }
+    }
+  },
+  validationLevel: "moderate"
+});
+
+// -- patients (10)
+db.patients.insertMany([
+ { patient_id: "P001", name: "Asha Rao", age: 25, gender: "Female", contact: "987650001", address: "Bengaluru", created_at: ISODate("2024-01-10") },
+ { patient_id: "P002", name: "Ravi Kumar", age: 40, gender: "Male", contact: "987650002", address: "Mysuru", created_at: ISODate("2024-03-05") },
+ { patient_id: "P003", name: "Sita Devi", age: 33, gender: "Female", contact: "987650003", address: "Hubli", created_at: ISODate("2024-02-20") },
+ { patient_id: "P004", name: "Arjun N", age: 60, gender: "Male", contact: "987650004", address: "Mangalore", created_at: ISODate("2023-11-15") },
+ { patient_id: "P005", name: "Leela", age: 29, gender: "Female", contact: "987650005", address: "Belgaum", created_at: ISODate("2023-12-01") },
+ { patient_id: "P006", name: "Manish", age: 50, gender: "Male", contact: "987650006", address: "Bengaluru", created_at: ISODate("2024-04-02") },
+ { patient_id: "P007", name: "Priya", age: 20, gender: "Female", contact: "987650007", address: "Tumkur", created_at: ISODate("2024-05-12") },
+ { patient_id: "P008", name: "Karan", age: 70, gender: "Male", contact: "987650008", address: "Dharwad", created_at: ISODate("2023-09-30") },
+ { patient_id: "P009", name: "Nila", age: 35, gender: "Female", contact: "987650009", address: "Udupi", created_at: ISODate("2024-06-18") },
+ { patient_id: "P010", name: "Suresh", age: 45, gender: "Male", contact: "987650010", address: "Gulbarga", created_at: ISODate("2024-07-01") }
+])
+
+// -- doctors (10)
+db.doctors.insertMany([
+ { doctor_id: "D001", name: "Dr. Meera", specialty: "Cardiology", contact: "990001001", created_at: ISODate("2022-02-10") },
+ { doctor_id: "D002", name: "Dr. Raj", specialty: "General", contact: "990001002", created_at: ISODate("2023-01-20") },
+ { doctor_id: "D003", name: "Dr. Nisha", specialty: "Dermatology", contact: "990001003", created_at: ISODate("2021-10-12") },
+ { doctor_id: "D004", name: "Dr. Bhat", specialty: "Orthopedics", contact: "990001004", created_at: ISODate("2023-05-05") },
+ { doctor_id: "D005", name: "Dr. Patel", specialty: "Pediatrics", contact: "990001005", created_at: ISODate("2024-02-02") },
+ { doctor_id: "D006", name: "Dr. Sunil", specialty: "Neurology", contact: "990001006", created_at: ISODate("2022-09-09") },
+ { doctor_id: "D007", name: "Dr. Anu", specialty: "Gynecology", contact: "990001007", created_at: ISODate("2024-06-01") },
+ { doctor_id: "D008", name: "Dr. Mehta", specialty: "ENT", contact: "990001008", created_at: ISODate("2023-07-07") },
+ { doctor_id: "D009", name: "Dr. Roy", specialty: "General", contact: "990001009", created_at: ISODate("2024-03-03") },
+ { doctor_id: "D010", name: "Dr. Iyer", specialty: "Cardiology", contact: "990001010", created_at: ISODate("2021-11-11") }
+])
+
+// -- medicines (10)
+db.medicines.insertMany([
+ { medicine_id: "M001", name: "Paracetamol", manufacturer: "PharmaA", expiry_date: ISODate("2026-12-31"), price: 10.0 },
+ { medicine_id: "M002", name: "Amoxicillin", manufacturer: "PharmaB", expiry_date: ISODate("2025-06-30"), price: 25.0 },
+ { medicine_id: "M003", name: "Cetirizine", manufacturer: "PharmaA", expiry_date: ISODate("2027-02-28"), price: 12.0 },
+ { medicine_id: "M004", name: "Atorvastatin", manufacturer: "PharmaC", expiry_date: ISODate("2026-08-15"), price: 50.0 },
+ { medicine_id: "M005", name: "Metformin", manufacturer: "PharmaD", expiry_date: ISODate("2025-11-11"), price: 40.0 },
+ { medicine_id: "M006", name: "Ibuprofen", manufacturer: "PharmaA", expiry_date: ISODate("2026-05-05"), price: 15.0 },
+ { medicine_id: "M007", name: "Omeprazole", manufacturer: "PharmaB", expiry_date: ISODate("2027-09-09"), price: 30.0 },
+ { medicine_id: "M008", name: "Aspirin", manufacturer: "PharmaE", expiry_date: ISODate("2025-03-03"), price: 8.0 },
+ { medicine_id: "M009", name: "Insulin", manufacturer: "PharmaF", expiry_date: ISODate("2025-07-07"), price: 200.0 },
+ { medicine_id: "M010", name: "VitaminC", manufacturer: "PharmaA", expiry_date: ISODate("2028-01-01"), price: 5.0 }
+])
+
+// -- prescriptions (10)
+db.prescriptions.insertMany([
+ { prescription_id: "PR001", patient_id: "P001", doctor_id: "D002", medicines: [{medicine_id:"M001",dosage:"500mg",duration:"5 days"}], date_issued: ISODate("2024-01-11"), notes: "Fever" },
+ { prescription_id: "PR002", patient_id: "P002", doctor_id: "D001", medicines: [{medicine_id:"M004",dosage:"10mg",duration:"30 days"}], date_issued: ISODate("2024-03-06") },
+ { prescription_id: "PR003", patient_id: "P003", doctor_id: "D003", medicines: [{medicine_id:"M003",dosage:"10mg",duration:"7 days"}], date_issued: ISODate("2024-02-22") },
+ { prescription_id: "PR004", patient_id: "P004", doctor_id: "D004", medicines: [{medicine_id:"M006",dosage:"200mg",duration:"3 days"}], date_issued: ISODate("2023-11-16") },
+ { prescription_id: "PR005", patient_id: "P005", doctor_id: "D005", medicines: [{medicine_id:"M007",dosage:"20mg",duration:"14 days"}], date_issued: ISODate("2023-12-02") },
+ { prescription_id: "PR006", patient_id: "P006", doctor_id: "D006", medicines: [{medicine_id:"M009",dosage:"variable",duration:"ongoing"}], date_issued: ISODate("2024-04-03") },
+ { prescription_id: "PR007", patient_id: "P007", doctor_id: "D007", medicines: [{medicine_id:"M010",dosage:"1 tab",duration:"10 days"}], date_issued: ISODate("2024-05-13") },
+ { prescription_id: "PR008", patient_id: "P008", doctor_id: "D008", medicines: [{medicine_id:"M002",dosage:"500mg",duration:"7 days"}], date_issued: ISODate("2023-10-01") },
+ { prescription_id: "PR009", patient_id: "P009", doctor_id: "D009", medicines: [{medicine_id:"M005",dosage:"500mg",duration:"90 days"}], date_issued: ISODate("2024-06-19") },
+ { prescription_id: "PR010", patient_id: "P010", doctor_id: "D010", medicines: [{medicine_id:"M008",dosage:"75mg",duration:"7 days"}], date_issued: ISODate("2024-07-02") }
+])
+
+// -- sales (10)
+db.sales.insertMany([
+ { sale_id: "S001", medicine_id: "M001", quantity: 2, total_price: 20.0, sale_date: ISODate("2024-01-11"), customer_name: "Asha Rao" },
+ { sale_id: "S002", medicine_id: "M004", quantity: 1, total_price: 50.0, sale_date: ISODate("2024-03-06"), customer_name: "Ravi Kumar" },
+ { sale_id: "S003", medicine_id: "M003", quantity: 3, total_price: 36.0, sale_date: ISODate("2024-02-22"), customer_name: "Sita Devi" },
+ { sale_id: "S004", medicine_id: "M006", quantity: 1, total_price: 15.0, sale_date: ISODate("2023-11-16"), customer_name: "Arjun N" },
+ { sale_id: "S005", medicine_id: "M007", quantity: 2, total_price: 60.0, sale_date: ISODate("2023-12-02"), customer_name: "Leela" },
+ { sale_id: "S006", medicine_id: "M009", quantity: 1, total_price: 200.0, sale_date: ISODate("2024-04-03"), customer_name: "Manish" },
+ { sale_id: "S007", medicine_id: "M010", quantity: 5, total_price: 25.0, sale_date: ISODate("2024-05-13"), customer_name: "Priya" },
+ { sale_id: "S008", medicine_id: "M002", quantity: 2, total_price: 50.0, sale_date: ISODate("2023-10-01"), customer_name: "Karan" },
+ { sale_id: "S009", medicine_id: "M005", quantity: 1, total_price: 40.0, sale_date: ISODate("2024-06-19"), customer_name: "Nila" },
+ { sale_id: "S010", medicine_id: "M008", quantity: 4, total_price: 32.0, sale_date: ISODate("2024-07-02"), customer_name: "Suresh" }
+])
+
+Creating Indexes
+Single Field Index
+Compound Index
+Text Index
+Partial Index
+Unique Index
+
+// Single Field Index
+db.patients.createIndex({ patient_id: 1 });
+
+// Compound Index
+db.prescriptions.createIndex({ patient_id: 1, date_issued: -1 });
+
+// Text Index
+db.medicines.createIndex({ name: "text", manufacturer: "text" });
+
+// Partial Index (only where total_price > 50)
+db.sales.createIndex(
+  { total_price: 1 },
+  { partialFilterExpression: { total_price: { $gt: 50 } } }
+);
+
+// Unique Index
+db.doctors.createIndex({ doctor_id: 1 }, { unique: true });
+
+Example Queries Using Indexes
+
+// Query 1: Single-field index
+db.patients.find({ patient_id: "P001" });
+
+// Query 2: Compound index
+db.prescriptions.find({ patient_id: "P001" }).sort({ date_issued: -1 });
+
+// Query 3: Text index
+db.medicines.find({ $text: { $search: "Paracetamol PharmaA" } });
+
+// Query 4: Partial index
+db.sales.find({ total_price: { $gt: 50 } });
+
+Index Verification
+
+// Show all indexes
+db.patients.getIndexes();
+db.prescriptions.getIndexes();
+db.sales.getIndexes();
+
+// Check explain plan (to confirm index usage)
+db.prescriptions.find({ patient_id: "P001" }).sort({ date_issued: -1 }).explain("executionStats");
+
+Performance Comparison Example
+Without Index
+With Index
+
+To see difference:
+Run a query before creating index (time manually).
+Then create the index and re-run the same query.
+Or, duplicate the collection:
+db.prescriptions.aggregate([{ $match: {} }, { $out: "prescriptions_copy" }]);
+db.prescriptions_copy.dropIndexes();
+
+Then compare query time on prescriptions (with index) vs prescriptions_copy (without index).
+
+Create a Library with 4 collections (books, members, borrowRecords, authors) and validation rules insert least 10 documents.  In this exercise create indexes examples (single-field, compound, text, unique) and show performance test with explain ().
+Create & Use Database and Collections with Validation
+Insert Sample Documents (10 each)
+Index Creation
+Single-field index 
+Compound index
+Text index
+Unique index
+Performance Test with explain()
+Without Index
+With Index
+Library Database — Additional Indexed Queries
+Find books by a specific author quickly
+Search books by title keyword (text index)
+Find overdue books efficiently
+Get borrowing history of a specific member, sorted by date
+
+
+// ============ 0. Setup: Switch DB and clean (safe for demo) ============
+use("library_db");
+
+// WARNING: For an existing DB, drop lines below carefully in a lab/demo only.
+db.books.drop();
+db.members.drop();
+db.authors.drop();
+db.borrowRecords.drop();
+
+// ============ 1. Create collections with validation ============
+
+// books collection: book_id unique string, title string, authors array of author_id refs, isbn, publishedDate (date), pages (int), description
+db.createCollection("books", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["book_id","title","authors","isbn","publishedDate","pages"],
+      properties: {
+        book_id: { bsonType: "string" },
+        title: { bsonType: "string" },
+        authors: {
+          bsonType: "array",
+          items: { bsonType: "string" }
+        },
+        isbn: { bsonType: "string" },
+        publishedDate: { bsonType: "date" },
+        pages: { bsonType: ["int","double","decimal"], minimum: 1 },
+        description: { bsonType: "string" },
+        categories: {
+          bsonType: "array",
+          items: { bsonType: "string" }
+        }
+      }
+    }
+  }
+});
+
+// members collection: member_id unique string, name, email, joinedDate
+db.createCollection("members", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["member_id","name","email","joinedDate"],
+      properties: {
+        member_id: { bsonType: "string" },
+        name: { bsonType: "string" },
+        email: { bsonType: "string" },
+        joinedDate: { bsonType: "date" }
+      }
+    }
+  }
+});
+
+// authors collection: author_id unique string, name, bio
+db.createCollection("authors", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["author_id","name"],
+      properties: {
+        author_id: { bsonType: "string" },
+        name: { bsonType: "string" },
+        bio: { bsonType: "string" }
+      }
+    }
+  }
+});
+
+// borrowRecords collection: record_id unique, book_id, member_id, borrowDate, dueDate, returned (bool), returnDate(optional)
+db.createCollection("borrowRecords", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["record_id","book_id","member_id","borrowDate","dueDate","returned"],
+      properties: {
+        record_id: { bsonType: "string" },
+        book_id: { bsonType: "string" },
+        member_id: { bsonType: "string" },
+        borrowDate: { bsonType: "date" },
+        dueDate: { bsonType: "date" },
+        returned: { bsonType: "bool" },
+        returnDate: { bsonType: "date" }
+      }
+    }
+  }
+});
+
+// ============ 2. Insert sample documents (10 each) ============
+
+// -- authors (10)
+db.authors.insertMany([
+  { author_id: "A001", name: "R. K. Narayan", bio: "Indian writer." },
+  { author_id: "A002", name: "Arundhati Roy", bio: "Author & activist." },
+  { author_id: "A003", name: "Ruskin Bond", bio: "Short story author." },
+  { author_id: "A004", name: "Amrita Pritam", bio: "Poet & novelist." },
+  { author_id: "A005", name: "Chetan Bhagat", bio: "Contemporary novelist." },
+  { author_id: "A006", name: "A. S. Byatt", bio: "English novelist." },
+  { author_id: "A007", name: "J. K. Rowling", bio: "Fantasy novelist." },
+  { author_id: "A008", name: "George Orwell", bio: "Political novelist." },
+  { author_id: "A009", name: "Jane Austen", bio: "Classic novelist." },
+  { author_id: "A010", name: "Mark Twain", bio: "American author." }
+]);
+
+// -- books (10)
+db.books.insertMany([
+  { book_id: "B001", title: "Malgudi Days", authors: ["A001"], isbn: "ISBN-0001", publishedDate: ISODate("1943-01-01"), pages: 250, description: "Collection of short stories", categories: ["Fiction", "Short Stories"] },
+  { book_id: "B002", title: "The God of Small Things", authors: ["A002"], isbn: "ISBN-0002", publishedDate: ISODate("1997-06-01"), pages: 340, description: "Novel about family", categories: ["Fiction"] },
+  { book_id: "B003", title: "The Room on the Roof", authors: ["A003"], isbn: "ISBN-0003", publishedDate: ISODate("1956-01-01"), pages: 220, description: "Coming-of-age novel", categories: ["Fiction"] },
+  { book_id: "B004", title: "Pinjar", authors: ["A004"], isbn: "ISBN-0004", publishedDate: ISODate("1950-01-01"), pages: 300, description: "Partition novel", categories: ["Historical"] },
+  { book_id: "B005", title: "Five Point Someone", authors: ["A005"], isbn: "ISBN-0005", publishedDate: ISODate("2004-01-01"), pages: 280, description: "Campus story", categories: ["Fiction", "Young Adult"] },
+  { book_id: "B006", title: "Possession", authors: ["A006"], isbn: "ISBN-0006", publishedDate: ISODate("1990-01-01"), pages: 480, description: "Literary novel", categories: ["Fiction"] },
+  { book_id: "B007", title: "Harry Potter and the Philosopher's Stone", authors: ["A007"], isbn: "ISBN-0007", publishedDate: ISODate("1997-06-26"), pages: 223, description: "Fantasy novel", categories: ["Fantasy", "Young Adult"] },
+  { book_id: "B008", title: "1984", authors: ["A008"], isbn: "ISBN-0008", publishedDate: ISODate("1949-06-08"), pages: 328, description: "Dystopian novel", categories: ["Fiction", "Political"] },
+  { book_id: "B009", title: "Pride and Prejudice", authors: ["A009"], isbn: "ISBN-0009", publishedDate: ISODate("1813-01-28"), pages: 279, description: "Classic romance", categories: ["Classic"] },
+  { book_id: "B010", title: "Adventures of Huckleberry Finn", authors: ["A010"], isbn: "ISBN-0010", publishedDate: ISODate("1884-12-10"), pages: 366, description: "American classic", categories: ["Classic"] }
+]);
+
+// -- members (10)
+db.members.insertMany([
+  { member_id: "M001", name: "Asha Rao", email: "asha@example.com", joinedDate: ISODate("2022-01-10") },
+  { member_id: "M002", name: "Ravi Kumar", email: "ravi@example.com", joinedDate: ISODate("2021-03-05") },
+  { member_id: "M003", name: "Sita Devi", email: "sita@example.com", joinedDate: ISODate("2023-02-20") },
+  { member_id: "M004", name: "Arjun N", email: "arjun@example.com", joinedDate: ISODate("2020-11-15") },
+  { member_id: "M005", name: "Leela", email: "leela@example.com", joinedDate: ISODate("2021-12-01") },
+  { member_id: "M006", name: "Manish", email: "manish@example.com", joinedDate: ISODate("2022-04-02") },
+  { member_id: "M007", name: "Priya", email: "priya@example.com", joinedDate: ISODate("2024-05-12") },
+  { member_id: "M008", name: "Karan", email: "karan@example.com", joinedDate: ISODate("2020-09-30") },
+  { member_id: "M009", name: "Nila", email: "nila@example.com", joinedDate: ISODate("2023-06-18") },
+  { member_id: "M010", name: "Suresh", email: "suresh@example.com", joinedDate: ISODate("2021-07-01") }
+]);
+
+// -- borrowRecords (10)
+db.borrowRecords.insertMany([
+  { record_id: "R001", book_id: "B001", member_id: "M001", borrowDate: ISODate("2024-08-01"), dueDate: ISODate("2024-08-15"), returned: false },
+  { record_id: "R002", book_id: "B002", member_id: "M002", borrowDate: ISODate("2024-07-10"), dueDate: ISODate("2024-07-24"), returned: true, returnDate: ISODate("2024-07-20") },
+  { record_id: "R003", book_id: "B003", member_id: "M003", borrowDate: ISODate("2024-07-15"), dueDate: ISODate("2024-07-29"), returned: true, returnDate: ISODate("2024-07-28") },
+  { record_id: "R004", book_id: "B004", member_id: "M004", borrowDate: ISODate("2024-06-20"), dueDate: ISODate("2024-07-04"), returned: true, returnDate: ISODate("2024-06-30") },
+  { record_id: "R005", book_id: "B005", member_id: "M005", borrowDate: ISODate("2024-07-30"), dueDate: ISODate("2024-08-13"), returned: false },
+  { record_id: "R006", book_id: "B006", member_id: "M006", borrowDate: ISODate("2024-06-01"), dueDate: ISODate("2024-06-15"), returned: true, returnDate: ISODate("2024-06-10") },
+  { record_id: "R007", book_id: "B007", member_id: "M007", borrowDate: ISODate("2024-08-05"), dueDate: ISODate("2024-08-19"), returned: false },
+  { record_id: "R008", book_id: "B008", member_id: "M008", borrowDate: ISODate("2024-07-01"), dueDate: ISODate("2024-07-15"), returned: true, returnDate: ISODate("2024-07-14") },
+  { record_id: "R009", book_id: "B009", member_id: "M009", borrowDate: ISODate("2024-07-25"), dueDate: ISODate("2024-08-08"), returned: false },
+  { record_id: "R010", book_id: "B010", member_id: "M010", borrowDate: ISODate("2024-06-11"), dueDate: ISODate("2024-06-25"), returned: true, returnDate: ISODate("2024-06-20") }
+]);
+
+// ============ 3. Index creation ============
+
+// i) Single-field index on books.book_id (and on members.member_id) - helps fast lookup
+db.books.createIndex({ book_id: 1 }, { name: "idx_books_book_id" });
+db.members.createIndex({ member_id: 1 }, { name: "idx_members_member_id" });
+
+// ii) Compound index: borrowRecords on (member_id, borrowDate desc) - fast borrowing history per member sorted by date
+db.borrowRecords.createIndex({ member_id: 1, borrowDate: -1 }, { name: "idx_borrow_member_borrowDate" });
+
+// iii) Text index: search on books.title and books.description
+db.books.createIndex({ title: "text", description: "text" }, { name: "idx_books_text" });
+
+// iv) Unique indexes: ensure unique IDs (create unique on id fields)
+db.books.createIndex({ book_id: 1 }, { unique: true, name: "uq_books_book_id" });        // may be redundant with previous but ensures uniqueness
+db.members.createIndex({ member_id: 1 }, { unique: true, name: "uq_members_member_id" });
+db.authors.createIndex({ author_id: 1 }, { unique: true, name: "uq_authors_author_id" });
+db.borrowRecords.createIndex({ record_id: 1 }, { unique: true, name: "uq_borrow_record_id" });
+
+// Note: creating a unique index will fail if duplicates exist. We inserted unique ids above, so it's safe.
+
+// ============ 4. Performance test with explain() ============
+// Strategy:
+// - Create a copy of the collection without indexes to act as "without index" baseline.
+// - Run .explain("executionStats") on both collections for the same query and compare totalDocsExamined / executionTimeMillis.
+
+// Example Query A: Find book by a specific author quickly.
+// Query: Find books where authors array contains "A001" (R. K. Narayan)
+
+// Create a copy for baseline (no indexes)
+db.books.aggregate([{ $match: {} }, { $out: "books_copy_noindex" }]);
+
+// Ensure books_copy_noindex has no indexes except _id
+print("Indexes on books_copy_noindex:");
+printjson(db.books_copy_noindex.getIndexes());
+
+// A1: Explain on copy (no book text/index) - baseline
+print("\n=== Explain (no index) : find books by author A001 ===");
+let qA = { authors: "A001" };
+printjson(db.books_copy_noindex.find(qA).explain("executionStats"));
+
+// A2: Explain on real books collection (with index on book_id and text index). 
+// Note: authors array is not indexed - we can create an index for authors to show difference
+db.books.createIndex({ authors: 1 }, { name: "idx_books_authors" });
+
+print("\n=== Explain (with authors index) : find books by author A001 ===");
+printjson(db.books.find(qA).explain("executionStats"));
+
+
+// Example Query B: Search books by title keyword (text index)
+// B1: explain on copy without text index (books_copy_noindex)
+let qB = { $text: { $search: "Malgudi" } };
+print("\n=== Explain (no index) : text search 'Malgudi' on books_copy_noindex ===");
+printjson(db.books_copy_noindex.find(qB).explain("executionStats"));
+
+// B2: explain on books with text index
+print("\n=== Explain (with text index) : text search 'Malgudi' on books ===");
+printjson(db.books.find(qB).explain("executionStats"));
+
+
+// Example Query C: Find overdue books (dueDate < now and returned:false)
+// For repeatability, set "now" variable
+const now = new Date();
+let qC = { dueDate: { $lt: now }, returned: false };
+
+// Create copy baseline for borrowRecords
+db.borrowRecords.aggregate([{ $match: {} }, { $out: "borrowRecords_copy_noindex" }]);
+
+print("\nIndexes on borrowRecords_copy_noindex:");
+printjson(db.borrowRecords_copy_noindex.getIndexes());
+
+// C1: explain on copy (no index)
+print("\n=== Explain (no index) : find overdue borrowRecords ===");
+printjson(db.borrowRecords_copy_noindex.find(qC).explain("executionStats"));
+
+// To speed up this query, create partial or compound indexes. We'll create a compound index (returned + dueDate)
+db.borrowRecords.createIndex({ returned: 1, dueDate: 1 }, { name: "idx_borrow_returned_dueDate" });
+
+print("\n=== Explain (with idx_borrow_returned_dueDate) : find overdue borrowRecords ===");
+printjson(db.borrowRecords.find(qC).explain("executionStats"));
+
+
+// Example Query D: Get borrowing history of a specific member sorted by date
+let qD = { member_id: "M001" };
+
+// D1: baseline (copy has no compound index)
+db.borrowRecords_copy_noindex.dropIndexes(); // ensure only _id exists on copy for fairness
+print("\n=== Explain (no index) : borrow history for M001 (no index) ===");
+printjson(db.borrowRecords_copy_noindex.find(qD).sort({ borrowDate: -1 }).explain("executionStats"));
+
+// D2: with compound index (member_id + borrowDate desc) on real collection
+print("\n=== Explain (with idx_borrow_member_borrowDate) : borrow history for M001 ===");
+printjson(db.borrowRecords.find(qD).sort({ borrowDate: -1 }).explain("executionStats"));
+
+
+// ============ 5. Additional example queries to run interactively ============
+/*
+i) Find books by a specific author quickly:
+   db.books.find({ authors: "A001" })
+
+ii) Search books by title keyword (text index):
+   db.books.find({ $text: { $search: "Malgudi" } }, { score: { $meta: "textScore" } }).sort({ score: { $meta: "textScore" } })
+
+iii) Find overdue books efficiently:
+   db.borrowRecords.find({ dueDate: { $lt: new Date() }, returned: false })
+
+iv) Get borrowing history of a specific member, sorted by date:
+   db.borrowRecords.find({ member_id: "M001" }).sort({ borrowDate: -1 })
+*/
+
+// ============ 6. Useful helper commands ============
+print("\n--- Indexes summary ---");
+print("books indexes:");
+printjson(db.books.getIndexes());
+print("borrowRecords indexes:");
+printjson(db.borrowRecords.getIndexes());
+print("members indexes:");
+printjson(db.members.getIndexes());
+print("authors indexes:");
+printjson(db.authors.getIndexes());
+
+print("\n--- Collection counts ---");
+printjson({
+  books: db.books.countDocuments(),
+  books_copy_noindex: db.books_copy_noindex.countDocuments(),
+  borrowRecords: db.borrowRecords.countDocuments(),
+  borrowRecords_copy_noindex: db.borrowRecords_copy_noindex.countDocuments()
+});
+
+print("\n--- Demo complete ---");
+
+
+Create a simple application that uses MongoDB with python.
+      Note: To install pymongo package: pip install pymongo
+
+
+import tkinter as tk
+from tkinter import messagebox
+from pymongo import MongoClient
+
+# MongoDB connection
+client = MongoClient("mongodb://localhost:27017/")
+db = client["collegeDB"]
+collection = db["students"]
+
+# Insert student record into MongoDB
+def insert_student():
+    name = name_entry.get()
+    roll = roll_entry.get()
+    branch = branch_entry.get()
+    cgpa = cgpa_entry.get()
+
+    if not (name and roll and branch and cgpa):
+        messagebox.showwarning("Input Error", "All fields are required!")
+        return
+
+    try:
+        cgpa = float(cgpa)
+        collection.insert_one({"name": name, "roll": roll, "branch": branch, "cgpa": cgpa})
+        messagebox.showinfo("Success", "Student record inserted.")
+        name_entry.delete(0, tk.END)
+        roll_entry.delete(0, tk.END)
+        branch_entry.delete(0, tk.END)
+        cgpa_entry.delete(0, tk.END)
+    except ValueError:
+        messagebox.showerror("Invalid Input", "CGPA must be a number.")
+
+# Display all student records
+def display_students():
+    students = collection.find()
+    result_text.delete("1.0", tk.END)
+    for s in students:
+        result_text.insert(tk.END, f"{s['name']} | {s['roll']} | {s['branch']} | {s['cgpa']}\n")
+
+# GUI setup
+app = tk.Tk()
+app.title("Student Database App (MongoDB)")
+
+tk.Label(app, text="Name:").grid(row=0, column=0)
+name_entry = tk.Entry(app)
+name_entry.grid(row=0, column=1)
+
+tk.Label(app, text="Roll No:").grid(row=1, column=0)
+roll_entry = tk.Entry(app)
+roll_entry.grid(row=1, column=1)
+
+tk.Label(app, text="Branch:").grid(row=2, column=0)
+branch_entry = tk.Entry(app)
+branch_entry.grid(row=2, column=1)
+
+tk.Label(app, text="CGPA:").grid(row=3, column=0)
+cgpa_entry = tk.Entry(app)
+cgpa_entry.grid(row=3, column=1)
+
+tk.Button(app, text="Insert Student", command=insert_student).grid(row=4, column=0, columnspan=2, pady=10)
+tk.Button(app, text="Show All Students", command=display_students).grid(row=5, column=0, columnspan=2, pady=5)
+
+result_text = tk.Text(app, width=50, height=10)
+result_text.grid(row=6, column=0, columnspan=2, padx=10, pady=10)
+
+app.mainloop()
